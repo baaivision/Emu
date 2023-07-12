@@ -67,3 +67,17 @@ If you find Emu useful for your research and applications, please consider starr
   year={2023},
 }
 ```
+
+## Misc
+
+<div align="center">
+
+[![Stargazers repo roster for @baaivision/Emu](https://reporoster.com/stars/baaivision/Emu)](https://github.com/baaivision/Emu/stargazers)
+
+
+[![Forkers repo roster for @baaivision/Emu](https://reporoster.com/forks/baaivision/Emu)](https://github.com/baaivision/Emu/network/members)
+
+
+[![Star History Chart](https://api.star-history.com/svg?repos=baaivision/Emu&type=Date)](https://star-history.com/#baaivision/Emu&Date)
+
+</div>
