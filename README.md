@@ -8,7 +8,7 @@
 	
 <sup>1</sup> [BAAI](https://www.baai.ac.cn/english.html), <sup>2</sup> [THU](https://air.tsinghua.edu.cn), <sup>3</sup> [PKU](https://english.pku.edu.cn/) <br><sup>*</sup> Equal Contribution
 
-|  [Paper](https://arxiv.org/abs/2307.05222) | [Demo(tmp)](http://218.91.113.230:9002/) |
+|  [Paper](https://arxiv.org/abs/2307.05222) | [Demo(tmp)](https://emu.ssi.plus/) |
 </div>
 
 
