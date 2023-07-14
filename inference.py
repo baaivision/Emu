@@ -7,6 +7,8 @@ import numpy as np
 from PIL import Image
 from models.modeling_emu import Emu
 
+image_placeholder = "[IMG]" + "<image>" * 32 + "[/IMG]"
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -58,12 +60,8 @@ def prepare_model(model_name, args):
 
 
 def Emu_instruct_caption(img):
-    prompt = "You will be presented with an image: [IMG]ImageContent[/IMG]. You will be able to see the image after I provide it to you. Please answer my questions based on the given image." \
-             "[USER]: [IMG]<image><image><image><image><image><image><image><image><image><image>" \
-             "<image><image><image><image><image><image><image><image><image><image><image><image>" \
-             "<image><image><image><image><image><image><image><image><image><image>[/IMG]" \
-             "Please provide an accurate and concise description of the given image. " \
-             "[ASSISTANT]: The image depicts a photo of"
+    system = "You will be presented with an image: [IMG]ImageContent[/IMG]. You will be able to see the image after I provide it to you. Please answer my questions based on the given image."
+    prompt = f"{system} [USER]: {image_placeholder}Please provide an accurate and concise description of the given image. [ASSISTANT]: The image depicts a photo of".strip()
 
     print(f"===> caption prompt: {prompt}")
 
@@ -80,17 +78,17 @@ def Emu_instruct_caption(img):
     print(f"===> caption output: {output_text}")
 
 
-def Emu_instruct_vqa(img, question):
-    prompt = "You will be presented with an image: [IMG]ImageContent[/IMG]. You will be able to see the image after I provide it to you. Please answer my questions based on the given image." \
-             "[USER]: [IMG]<image><image><image><image><image><image><image><image><image><image>" \
-             "<image><image><image><image><image><image><image><image><image><image><image><image>" \
-             "<image><image><image><image><image><image><image><image><image><image>[/IMG]" \
-             f"{question} " \
-             "[ASSISTANT]:"
+def Emu_instruct_inference(image_list, text_sequence):
+    if len(image_list) == 1:
+        system = 'You will be presented with an image: [IMG]ImageContent[/IMG]. You will be able to see the image after I provide it to you. Please answer my questions based on the given image.'
+    else:
+        system = ''
+
+    prompt = f"{system} [USER]: {text_sequence} [ASSISTANT]:".strip()
 
     print(f"===> vqa prompt: {prompt}")
 
-    samples = {"image": img, "prompt": prompt}
+    samples = {"image": torch.cat(image_list, dim=0), "prompt": prompt}
 
     output_text = emu_model.generate(
         samples,
@@ -124,14 +122,40 @@ if __name__ == '__main__':
 
     args = parse_args()
 
+    # initialize and load model
     args.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     emu_model = prepare_model('Emu-14B', args)
     emu_model.to(args.device).to(torch.bfloat16)
 
-    img_path = 'examples/iron_man.jpg'
-    question = 'what is the man doing?'
-    img = process_img(img_path, args.device)
+    # prepare interleaved image-text data as input
+    interleaved_sequence = [
+        process_img('examples/book1.jpeg', args.device),
+        'This is the first image.',
+        process_img('examples/book2.jpeg', args.device),
+        'This is the second image.',
+        process_img('examples/book3.jpeg', args.device),
+        'This is the third image.',
+        process_img('examples/book4.jpeg', args.device),
+        'This is the fourth image.',
+        'Describe all images.'
+    ]
+    text_sequence = ''
+    image_list = []
+    for item in interleaved_sequence:
+        if isinstance(item, str):  # text
+            text_sequence += item
+        else:  # image
+            image_list.append(item)
+            text_sequence += image_placeholder
 
-    # instruct
-    Emu_instruct_caption(img)
-    Emu_instruct_vqa(img, question)
+    # prepare image captioning and vqa data
+    image = process_img('examples/iron_man.jpg', args.device)
+    question = 'what is the man doing?'
+
+    # Instruct model inference
+    # -- image captioning
+    Emu_instruct_caption(image)
+    # -- visual question answering
+    Emu_instruct_inference([image], image_placeholder + question)
+    # -- image-text interleaved input, text output
+    Emu_instruct_inference(image_list, text_sequence)

@@ -45,7 +45,7 @@ We release the pretrained and instruction-tuned weights of **Emu**. Our weights 
 
 ## Inference
 
-At present, we provide inference code for image captioning and visual question answering:
+At present, we provide inference code that can process interleaved image-text as input, and output text. This includes image-to-text tasks such as image captioning and visual question answering:
 
 ```sh
 python inference.py --instruct --ckpt-path $Instruct_CKPT_PATH
