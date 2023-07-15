@@ -51,6 +51,21 @@ At present, we provide inference code that can process interleaved image-text as
 python inference.py --instruct --ckpt-path $Instruct_CKPT_PATH
 ```
 
+## Schedule
+
+We are commited to open-sourcing all Emu related materials, including:
+
+- [x] The weights of **Emu** and **Emu-I**
+- [x] Inference example for interleaved image-text as input, text as output
+- [ ] Video inference example
+- [ ] The weights of image decoder & image generation/blending example
+- [ ] The YT-Storyboard-1B pretraining data
+- [ ] The pretraining code
+- [ ] The instruction tuning code
+- [ ] The evaluation code
+
+We hope to foster the growth of our community through open-sourcing and promoting collaboration👬. Let's step towards multimodal intelligence together🍻.
+
 ## Acknowledgement
 
 We thank the great work from [LLaMA](https://github.com/facebookresearch/llama), [BLIP-2](https://github.com/salesforce/LAVIS), [Stable Diffusion](https://github.com/CompVis/stable-diffusion), and [FastChat](https://github.com/lm-sys/FastChat).
