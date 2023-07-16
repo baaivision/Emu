@@ -137,13 +137,18 @@ class LLaMAForClsAndRegression(nn.Module):
             use_fast=False,
         )
 
+        if args.instruct:  # for instruction tuning, [USER] and [ASSISTANT] tokens are added
+            special_token_list = [DEFAULT_IMG_START_TOKEN, DEFAULT_IMG_END_TOKEN, DEFAULT_IMG_TOKEN, USER_TOKEN,
+                                  ASSISTANT_TOKEN]
+        else:
+            special_token_list = [DEFAULT_IMG_START_TOKEN, DEFAULT_IMG_END_TOKEN, DEFAULT_IMG_TOKEN]
+
         special_tokens_dict = dict(
             pad_token=DEFAULT_PAD_TOKEN,
             bos_token=DEFAULT_BOS_TOKEN,
             eos_token=DEFAULT_EOS_TOKEN,
             unk_token=DEFAULT_UNK_TOKEN,
-            additional_special_tokens=[DEFAULT_IMG_START_TOKEN, DEFAULT_IMG_END_TOKEN, DEFAULT_IMG_TOKEN, USER_TOKEN,
-                                       ASSISTANT_TOKEN]
+            additional_special_tokens=special_token_list
         )
 
         if self.tokenizer.pad_token is None:

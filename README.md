@@ -45,10 +45,18 @@ We release the pretrained and instruction-tuned weights of **Emu**. Our weights 
 
 ## Inference
 
-At present, we provide inference code that can process interleaved image-text as input, and output text. This includes image-to-text tasks such as image captioning and visual question answering:
+At present, we provide inference code that can process interleaved image-text as input, and output text.
+
+For instruction-tuned model, we provide examples for image captioning, visual question answering, and interleaved multi-image understanding:
 
 ```sh
 python inference.py --instruct --ckpt-path $Instruct_CKPT_PATH
+```
+
+For pretrained model, we provide an example for in-context learning:
+
+```sh
+python inference.py --ckpt-path $Pretrain_CKPT_PATH
 ```
 
 ## Schedule
@@ -78,7 +86,7 @@ If you find Emu useful for your research and applications, please consider starr
 @article{Emu,
   title={Generative Pretraining in Multimodality},
   author={Sun, Quan and Yu, Qiying and Cui, Yufeng and Zhang, Fan and Zhang, Xiaosong and Wang, Yueze and Gao, Hongcheng and Liu, Jingjing and Huang, Tiejun and Wang, Xinlong},
-  publisher={arXiv:2307.05222},
+  publisher={arXiv preprint arXiv:2307.05222},
   year={2023},
 }
 ```
