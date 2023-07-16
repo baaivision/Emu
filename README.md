@@ -8,12 +8,12 @@
 	
 <sup>1</sup> [BAAI](https://www.baai.ac.cn/english.html), <sup>2</sup> [THU](https://air.tsinghua.edu.cn), <sup>3</sup> [PKU](https://english.pku.edu.cn/) <br><sup>*</sup> Equal Contribution
 
-|  [Paper](https://arxiv.org/abs/2307.05222) | [Demo(tmp)](https://emu.ssi.plus/) |
+|  [Paper](https://arxiv.org/abs/2307.05222) | [Demo](https://emu.ssi.plus/) |
 </div>
 
 
 
-**Emu** is a Large Multimodal Model (LMM) trained with a unified autoregressive objective, *i.e.*, predict-the-next-element, including both visual embeddings and textual tokens. Trained under this objective, **Emu** can serve as a generalist interface for both image-to-text and text-to-image tasks.
+**Emu is a multimodal generalist that can seamlessly generate images and texts in multimodal context**. **Emu** is trained with a unified autoregressive objective, *i.e.*, predict-the-next-element, including both visual embeddings and textual tokens. Trained under this objective, **Emu** can serve as a generalist interface for both image-to-text and text-to-image tasks.
 
 ![](assets/Emu.png)
 
@@ -61,16 +61,16 @@ python inference.py --ckpt-path $Pretrain_CKPT_PATH
 
 ## Schedule
 
-We are commited to open-sourcing all Emu related materials, including:
+We are committed to open-sourcing all Emu related materials, including:
 
 - [x] The weights of **Emu** and **Emu-I**
 - [x] Inference example for interleaved image-text as input, text as output
 - [ ] Video inference example
-- [ ] The weights of image decoder & image generation/blending example
-- [ ] The YT-Storyboard-1B pretraining data
-- [ ] The pretraining code
-- [ ] The instruction tuning code
-- [ ] The evaluation code
+- [ ] Weights of image decoder & image generation/blending example
+- [ ] YT-Storyboard-1B pretraining data
+- [ ] Pretraining code
+- [ ] Instruction tuning code
+- [ ] Evaluation code
 
 We hope to foster the growth of our community through open-sourcing and promoting collaboration👬. Let's step towards multimodal intelligence together🍻.
 
