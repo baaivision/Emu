@@ -150,7 +150,6 @@ class Emu(nn.Module):
 
             if image is not None:
                 image_features = image_features.reshape(-1, image_features.shape[-1])
-                print(inputs_embeds.shape, img_token_idx_list.shape, image_features.shape, encoder_atts.shape)
                 inputs_embeds[img_token_idx_list] = image_features
 
             inputs_embeds = inputs_embeds.unsqueeze(0)

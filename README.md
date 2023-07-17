@@ -45,7 +45,7 @@ We release the pretrained and instruction-tuned weights of **Emu**. Our weights 
 
 ## Inference
 
-At present, we provide inference code that can process interleaved image-text as input, and output text.
+At present, we provide inference code that can process interleaved image-text and **video** as input, and output text.
 
 For instruction-tuned model, we provide examples for image captioning, visual question answering, and interleaved multi-image understanding:
 
@@ -65,7 +65,7 @@ We are committed to open-sourcing all Emu related materials, including:
 
 - [x] The weights of **Emu** and **Emu-I**
 - [x] Inference example for interleaved image-text as input, text as output
-- [ ] Video inference example
+- [x] Video inference example
 - [ ] Weights of image decoder & image generation/blending example
 - [ ] YT-Storyboard-1B pretraining data
 - [ ] Pretraining code

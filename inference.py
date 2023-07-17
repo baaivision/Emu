@@ -3,11 +3,12 @@ import argparse
 import json
 
 import torch
-import numpy as np
-from PIL import Image
 from models.modeling_emu import Emu
+from utils import process_img, process_video
 
 image_placeholder = "[IMG]" + "<image>" * 32 + "[/IMG]"
+image_system_msg = "You will be presented with an image: [IMG]ImageContent[/IMG]. You will be able to see the image after I provide it to you. Please answer my questions based on the given image."
+video_system_msg = "You are a helpful assistant and you will be presented with a video consisting of multiple chronological images: [IMG]ImageContent[/IMG]. You will be able to see the video after I provide it to you. Please answer my questions based on the given video."
 
 
 def parse_args():
@@ -58,12 +59,7 @@ def prepare_model(model_name, args):
     return model
 
 
-def Emu_inference(image_list, text_sequence, instruct=True):
-    if len(image_list) == 1 and instruct:
-        system = 'You will be presented with an image: [IMG]ImageContent[/IMG]. You will be able to see the image after I provide it to you. Please answer my questions based on the given image.'
-    else:
-        system = ''
-
+def Emu_inference(image_list, text_sequence, system='', instruct=True, max_new_tokens=128, beam_size=5, length_penalty=0.0):
     if instruct:
         prompt = f"{system} [USER]: {text_sequence} [ASSISTANT]:".strip()
     else:
@@ -75,9 +71,9 @@ def Emu_inference(image_list, text_sequence, instruct=True):
 
     output_text = emu_model.generate(
         samples,
-        max_new_tokens=512,
-        num_beams=5,
-        length_penalty=0.0,
+        max_new_tokens=max_new_tokens,
+        num_beams=beam_size,
+        length_penalty=length_penalty,
         repetition_penalty=1.0,
     )[0].strip()
 
@@ -85,7 +81,7 @@ def Emu_inference(image_list, text_sequence, instruct=True):
 
 
 def Emu_instruct_caption(img):
-    system = "You will be presented with an image: [IMG]ImageContent[/IMG]. You will be able to see the image after I provide it to you. Please answer my questions based on the given image."
+    system = image_system_msg
 
     prompt = f"{system} [USER]: {image_placeholder}Please provide an accurate and concise description of the given image. [ASSISTANT]: The image depicts a photo of".strip()
 
@@ -106,74 +102,72 @@ def Emu_instruct_caption(img):
 
 def pretrain_example():
     # prepare in-context learning example
-    interleaved_sequence = [
-        process_img('examples/dog.png', args.device),
+    image_text_sequence = [
+        process_img(img_path='examples/dog.png', device=args.device),
         'There are two dogs.',
-        process_img('examples/panda.png', args.device),
+        process_img(img_path='examples/panda.png', device=args.device),
         'There are three pandas.',
-        process_img('examples/sunflower.png', args.device),
+        process_img(img_path='examples/sunflower.png', device=args.device),
     ]
-    text_sequence = ''
-    image_list = []
-    for item in interleaved_sequence:
+    interleaved_sequence_1 = ''
+    image_list_1 = []
+    for item in image_text_sequence:
         if isinstance(item, str):  # text
-            text_sequence += item
+            interleaved_sequence_1 += item
         else:  # image
-            image_list.append(item)
-            text_sequence += image_placeholder
+            image_list_1.append(item)
+            interleaved_sequence_1 += image_placeholder
+
+    # prepare video example
+    image_list_2, interleaved_sequence_2 = process_video('examples/AppleVR.mp4')
+    interleaved_sequence_2 = interleaved_sequence_2 + "what's happening in this video?"
 
     # Pretrained Model Inference
     # -- in-context learning
-    Emu_inference(image_list, text_sequence, instruct=False)
+    Emu_inference(image_list_1, interleaved_sequence_1, instruct=False)
+    # -- video understanding
+    Emu_inference(image_list_2, interleaved_sequence_2, instruct=False)
 
 
 def instruct_example():
-    # prepare interleaved image-text data as input
-    interleaved_sequence = [
-        process_img('examples/book1.jpeg', args.device),
+    # prepare image captioning and vqa examples
+    image = process_img(img_path='examples/iron_man.jpg', device=args.device)
+    question = 'what is the man doing?'
+
+    # prepare interleaved image-text input example
+    image_text_sequence = [
+        process_img(img_path='examples/book1.jpeg', device=args.device),
         'This is the first image.',
-        process_img('examples/book2.jpeg', args.device),
+        process_img(img_path='examples/book2.jpeg', device=args.device),
         'This is the second image.',
-        process_img('examples/book3.jpeg', args.device),
+        process_img(img_path='examples/book3.jpeg', device=args.device),
         'This is the third image.',
-        process_img('examples/book4.jpeg', args.device),
+        process_img(img_path='examples/book4.jpeg', device=args.device),
         'This is the fourth image.',
         'Describe all images.'
     ]
-    text_sequence = ''
-    image_list = []
-    for item in interleaved_sequence:
+    interleaved_sequence_1 = ''
+    image_list_1 = []
+    for item in image_text_sequence:
         if isinstance(item, str):  # text
-            text_sequence += item
+            interleaved_sequence_1 += item
         else:  # image
-            image_list.append(item)
-            text_sequence += image_placeholder
+            image_list_1.append(item)
+            interleaved_sequence_1 += image_placeholder
 
-    # prepare image captioning and vqa data
-    image = process_img('examples/iron_man.jpg', args.device)
-    question = 'what is the man doing?'
+    # prepare video example
+    image_list_2, interleaved_sequence_2 = process_video('examples/AppleVR.mp4')
+    interleaved_sequence_2 += "What's the woman doing in the video?"
 
     # Instruct Model Inference
     # -- image captioning
     Emu_instruct_caption(image)
     # -- visual question answering
-    Emu_inference([image], image_placeholder + question)
+    Emu_inference([image], image_placeholder + question, system=image_system_msg)
     # -- image-text interleaved input, text output
-    Emu_inference(image_list, text_sequence)
-
-
-def process_img(img_path, device):
-    width, height = 224, 224
-    OPENAI_DATASET_MEAN = (0.48145466, 0.4578275, 0.40821073)
-    OPENAI_DATASET_STD = (0.26862954, 0.26130258, 0.27577711)
-    img = Image.open(img_path).convert("RGB")
-    img = img.resize((width, height))
-    img = np.array(img) / 255.
-    img = (img - OPENAI_DATASET_MEAN) / OPENAI_DATASET_STD
-    img = torch.tensor(img).to(device).to(torch.float)
-    img = torch.einsum('hwc->chw', img)
-    img = img.unsqueeze(0)
-    return img
+    Emu_inference(image_list_1, interleaved_sequence_1, system='')
+    # -- video understanding
+    Emu_inference(image_list_2, interleaved_sequence_2, system=video_system_msg, length_penalty=1.0)
 
 
 if __name__ == '__main__':
