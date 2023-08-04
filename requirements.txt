@@ -9,3 +9,5 @@ timm
 xformers
 sentencepiece
 decord
+diffusers==0.15.1
+torchvision

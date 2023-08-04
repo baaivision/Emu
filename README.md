@@ -38,25 +38,31 @@ pip install -r requirements.txt
 
 We release the pretrained and instruction-tuned weights of **Emu**. Our weights are subject to LLaMA's [license](https://github.com/facebookresearch/llama/blob/main/LICENSE).
 
-| Model name | Weight                                                  |
-| ---------- | ------------------------------------------------------- |
-| **Emu**    | [🤗 HF link](https://huggingface.co/BAAI/Emu/blob/main/Emu-pretrain.pt) (27GB) |
-| **Emu-I**  | [🤗 HF link](https://huggingface.co/BAAI/Emu/blob/main/Emu-instruct.pt) (27GB) |
+| Model name         | Weight                                                  |
+| ------------------ | ------------------------------------------------------- |
+| **Emu w/ Decoder** | [🤗 HF link](https://huggingface.co/BAAI/Emu/tree/main/pretrain) (34GB) |
+| **Emu-I**          | [🤗 HF link](https://huggingface.co/BAAI/Emu/blob/main/Emu-instruct.pt) (27GB) |
 
 ## Inference
 
-At present, we provide inference code that can process interleaved image-text and **video** as input, and output text.
+At present, we provide inference code that can process interleaved image-text and **video** as input, and output text and image.
 
 For instruction-tuned model, we provide examples for image captioning, visual question answering, and interleaved multi-image understanding:
 
 ```sh
-python inference.py --instruct --ckpt-path $Instruct_CKPT_PATH
+python inference.py --instruct --ckpt-path ${INSTRUCT_CKPT_PATH}
 ```
 
 For pretrained model, we provide an example for in-context learning:
 
 ```sh
-python inference.py --ckpt-path $Pretrain_CKPT_PATH
+python inference.py --ckpt-path ${PRETRAIN_CKPT_DIR}/multimodal_encoder/pytorch_model.bin
+```
+
+For image generation, we provide examples for image blending, text-to-image and in-context generation:
+
+```sh
+python image_inference.py --ckpt-path ${PRETRAIN_CKPT_DIR}
 ```
 
 ## Schedule
@@ -66,7 +72,7 @@ We are committed to open-sourcing all Emu related materials, including:
 - [x] The weights of **Emu** and **Emu-I**
 - [x] Inference example for interleaved image-text as input, text as output
 - [x] Video inference example
-- [ ] Weights of image decoder & image generation/blending example
+- [x] Weights of image decoder & image generation/blending example
 - [ ] YT-Storyboard-1B pretraining data
 - [ ] Pretraining code
 - [ ] Instruction tuning code
