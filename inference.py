@@ -118,15 +118,9 @@ def pretrain_example():
             image_list_1.append(item)
             interleaved_sequence_1 += image_placeholder
 
-    # prepare video example
-    image_list_2, interleaved_sequence_2 = process_video('examples/AppleVR.mp4')
-    interleaved_sequence_2 = interleaved_sequence_2 + "what's happening in this video?"
-
     # Pretrained Model Inference
     # -- in-context learning
     Emu_inference(image_list_1, interleaved_sequence_1, instruct=False)
-    # -- video understanding
-    Emu_inference(image_list_2, interleaved_sequence_2, instruct=False)
 
 
 def instruct_example():
