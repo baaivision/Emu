@@ -36,7 +36,7 @@ pip install -r requirements.txt
 
 ## Model Weights
 
-We release the pretrained and instruction-tuned weights of **Emu**. Our weights are subject to LLaMA's [license](https://github.com/facebookresearch/llama/blob/main/LICENSE).
+We release the pretrained and instruction-tuned weights of **Emu**. Our weights are subject to LLaMA-1's [license](https://github.com/facebookresearch/llama/blob/1076b9c51c77ad06e9d7ba8a4c6df775741732bd/LICENSE).
 
 | Model name         | Weight                                                  |
 | ------------------ | ------------------------------------------------------- |
