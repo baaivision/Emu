@@ -7,6 +7,7 @@ from torch import nn
 from .causal_former import CausalFormer
 from .model import MultimodalCfg, CLIPVisionCfg, VLadapterCfg, _build_vision_tower
 from .transformer import LayerNorm
+from .prediction_mixin import PredictClassMixin
 
 try:
     from transformers import BeamSearchScorer, LogitsProcessorList, MinLengthLogitsProcessor, StoppingCriteriaList, \
@@ -18,7 +19,7 @@ from transformers.generation.configuration_utils import GenerationConfig
 GENERATION_CONFIG = GenerationConfig(bos_token_id=1, eos_token_id=2, pad_token_id=32000)
 
 
-class Emu(nn.Module):
+class Emu(nn.Module, PredictClassMixin):
     def __init__(
         self,
         embed_dim,
@@ -112,6 +113,7 @@ class Emu(nn.Module):
         penalty_alpha=None,  # contrastive search
         top_k=None,
         no_repeat_ngram_size=None,
+        **kwargs,
     ):
         GENERATION_CONFIG.pad_token_id = self.decoder.tokenizer.pad_token_id
         GENERATION_CONFIG.bos_token_id = self.decoder.tokenizer.bos_token_id
@@ -138,11 +140,11 @@ class Emu(nn.Module):
 
         self.decoder.tokenizer.padding_side = "right"
 
-        input_ids = input_tokens.input_ids[0]
-        encoder_atts = input_tokens.attention_mask[0]
+        input_ids = input_tokens.input_ids
+        encoder_atts = input_tokens.attention_mask
 
-        img_token_id = self.decoder.tokenizer.convert_tokens_to_ids(["<image>"])[0]  # 32003
-        img_token_idx_list = input_ids.eq(img_token_id).squeeze() 
+        img_token_id = self.decoder.tokenizer.convert_tokens_to_ids("<image>")  # 32003
+        img_token_idx_list = input_ids.eq(img_token_id)
 
         with torch.amp.autocast(device_type=self.args.device.type, dtype=torch.bfloat16):
             if self.args.instruct:
@@ -154,8 +156,8 @@ class Emu(nn.Module):
                 image_features = image_features.reshape(-1, image_features.shape[-1])
                 inputs_embeds[img_token_idx_list] = image_features
 
-            inputs_embeds = inputs_embeds.unsqueeze(0)
-            encoder_atts = encoder_atts.unsqueeze(0)
+            inputs_embeds = inputs_embeds
+            encoder_atts = encoder_atts
 
             outputs = self.decoder.lm.generate(
                 generation_config=GENERATION_CONFIG,
@@ -173,6 +175,7 @@ class Emu(nn.Module):
                 penalty_alpha=penalty_alpha,
                 top_k=top_k,
                 no_repeat_ngram_size=no_repeat_ngram_size,
+                **kwargs,
             )
 
             output_text = self.decoder.tokenizer.batch_decode(

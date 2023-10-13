@@ -52,6 +52,8 @@ def prepare_model(model_name, args):
 
     print(f"=====> loading from ckpt_path {args.ckpt_path}")
     ckpt = torch.load(args.ckpt_path, map_location="cpu")
+    if 'module' in ckpt:
+        ckpt = ckpt['module']
     msg = model.load_state_dict(ckpt, strict=False)
     model.eval()
     print(f"=====> get model.load_state_dict msg: {msg}")

@@ -65,6 +65,75 @@ For image generation, we provide examples for image blending, text-to-image and 
 python image_inference.py --ckpt-path ${PRETRAIN_CKPT_DIR}
 ```
 
+## Evaluation
+
+We provide **Emu-I**'s zero-shot evaluation code on MM-Vet, COCO Caption, VQAv2, OKVQA, VizWiz and VisDial benchmarks. For example, evaluating COCO captioning on a node with 8 GPUs:
+```sh
+python -m torch.distributed.launch \
+    --nproc_per_node=8 \
+    --use_env \
+    eval.py \
+    --instruct \
+    --batch_size 4 \
+    --ckpt_path ${INSTRUCT_CKPT_PATH} \
+    --root_path /path/to/benchmark_root \
+    --dataset_name coco \  # coco, mmvet, vqav2, okvqa, vizwiz, visdial
+    --output_path ./output/
+```
+where `/path/to/benchmark_root` should contain the following file structure:
+```
+benchmark_root/
+    mm-vet/
+        mm-vet.json
+        images/
+            v1_0.png
+            ...
+    coco/
+        images/
+            test2015/
+                COCO_test2015_{...}.jpg
+                ...
+            val2014/
+                COCO_val2014_{...}.jpg
+                ...
+        annotations/
+            coco_karpathy_test.json
+            coco_karpathy_test_gt.json
+            coco_karpathy_val.json
+            coco_karpathy_val_gt.json
+            v2_OpenEnded_mscoco_val2014_questions.json
+            v2_mscoco_val2014_annotations.json
+            vqa_test.json
+            vqa_val_eval.json
+    okvqa/
+        annotations/
+            OpenEnded_mscoco_val2014_questions.json
+            mscoco_val2014_annotations.json
+            vqa_val_eval.json
+    vizwiz/
+        images/
+            test/
+                VizWiz_test_{...}.jpg
+                ...
+            val/
+                VizWiz_val_{...}.jpg
+                ...
+        annotations/
+            test.json
+            val.json
+    visdial/
+        VisualDialog_test2018/
+            VisualDialog_test2018_{...}.jpg
+            ...
+        VisualDialog_val2018/
+            VisualDialog_val2018_{...}.jpg
+            ...
+        visdial_1.0_test.json
+        visdial_1.0_val.json
+```
+You can also customize your own file structure and modify the corresponding data loading code. Each dataset file can be found in the `mm_eval/datasets/` directory. All files can be downloaded from the official dataset websites or from [LAVIS](https://github.com/salesforce/LAVIS). 
+
+
 ## Schedule
 
 We are committed to open-sourcing all Emu related materials, including:
@@ -73,10 +142,10 @@ We are committed to open-sourcing all Emu related materials, including:
 - [x] Inference example for interleaved image-text as input, text as output
 - [x] Video inference example
 - [x] Weights of image decoder & image generation/blending example
-- [ ] YT-Storyboard-1B pretraining data
+- [x] YT-Storyboard-1B pretraining data
 - [ ] Pretraining code
 - [ ] Instruction tuning code
-- [ ] Evaluation code
+- [x] Evaluation code
 
 We hope to foster the growth of our community through open-sourcing and promoting collaboration👬. Let's step towards multimodal intelligence together🍻.
 

@@ -69,6 +69,7 @@ class LlamaForReg(transformers.LlamaForCausalLM):
                 output_attentions: Optional[bool] = None,
                 output_hidden_states: Optional[bool] = None,
                 return_dict: Optional[bool] = None,
+                reduction: Optional[str] = "mean",
                 regress_mask: torch.Tensor = None,
                 img_length: int = None,
                 args=None,
@@ -109,8 +110,10 @@ class LlamaForReg(transformers.LlamaForCausalLM):
             shift_logits = logits[..., :-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
-            loss_fct = torch.nn.CrossEntropyLoss()
+            loss_fct = torch.nn.CrossEntropyLoss(reduction=reduction)
             loss = loss_fct(shift_logits.view(-1, self.config.vocab_size), shift_labels.view(-1))
+            if reduction == "none":
+                loss = loss.view(logits.size(0), -1).mean(1)
 
         return RegressCausalLMOutputWithPast(
             llm_loss=loss,
