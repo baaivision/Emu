@@ -9,13 +9,19 @@
 <sup>1</sup> [BAAI](https://www.baai.ac.cn/english.html), <sup>2</sup> [THU](https://air.tsinghua.edu.cn), <sup>3</sup> [PKU](https://english.pku.edu.cn/) <br><sup>*</sup> Equal Contribution
 
 |  [Paper](https://arxiv.org/abs/2307.05222) | [Demo](https://emu.ssi.plus/) |
+
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/generative-pretraining-in-multimodality/visual-question-answering-on-mm-vet-w-o)](https://paperswithcode.com/sota/visual-question-answering-on-mm-vet?tag_filter=0)
 </div>
-
-
 
 **Emu is a multimodal generalist that can seamlessly generate images and texts in multimodal context**. **Emu** is trained with a unified autoregressive objective, *i.e.*, predict-the-next-element, including both visual embeddings and textual tokens. Trained under this objective, **Emu** can serve as a generalist interface for both image-to-text and text-to-image tasks.
 
 ![](assets/Emu.png)
+
+## News
+
+* `Oct 16, 2023`: **Emu-I** achieves [state-of-the-art performance](https://paperswithcode.com/sota/visual-question-answering-on-mm-vet?tag_filter=0) on the [MM-Vet](https://github.com/yuweihao/MM-Vet) benchmark (w/o external tools like GPT-4), which assesses large multimodal models in real-world, in-the-wild scenarios.
+* `Oct 13, 2023`: The code for the zero-shot evaluation of **Emu-I** has been released!
+* `Sep 18, 2023`: Tools for processing YT-Storyboard-1b dataset have been released!
 
 ## Generalist Interface
 

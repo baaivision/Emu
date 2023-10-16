@@ -16,7 +16,6 @@ from torch.utils.data import Dataset, DataLoader, DistributedSampler
 from pycocotools.coco import COCO
 from pycocoevalcap.eval import COCOEvalCap
 
-# coco_gt_file = "/share/project/zxs/datasets/benchmarks/coco_gt/coco_karpathy_test_gt.json"
 coco_gt_file = "$YOUR_PATH/coco_karpathy_test_gt.json"
 
 class COCODataset(Dataset):
