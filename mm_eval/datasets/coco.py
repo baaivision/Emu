@@ -52,7 +52,7 @@ class COCODataset(Dataset):
         image = Image.open(image_path).convert("RGB")
         
         prompt = self.image_system_msg
-        prompt += f" [USER]: {self.image_placeholder} please provide an accurate and concise description of the given image. [ASSISTANT]:"
+        prompt += f" [USER]: {self.image_placeholder} please provide an accurate and concise description of the given image. [ASSISTANT]: the image depicts a photo of"
 
         return {"image": image, "instance_id": image_id, "prompt": prompt}
         
@@ -128,30 +128,3 @@ def coco_results_processor(results, output_dir):
 
     return coco_eval
 
-# def coco_eval(result_file):
-#     annotation_file = coco_gt_file
-
-#     # create coco object and coco_result object
-#     coco = COCO(annotation_file)
-#     coco_result = coco.loadRes(result_file)
-
-#     # create coco_eval object by taking coco and coco_result
-#     coco_eval = COCOEvalCap(coco, coco_result)
-
-#     # evaluate on a subset of images by setting
-#     # coco_eval.params['image_id'] = coco_result.getImgIds()
-#     # please remove this line when evaluating the full validation set
-#     # coco_eval.params['image_id'] = coco_result.getImgIds()
-
-#     # evaluate results
-#     # SPICE will take a few minutes the first time, but speeds up due to caching
-#     coco_eval.evaluate()
-
-#     # print output evaluation scores
-#     for metric, score in coco_eval.eval.items():
-#         print(f"{metric}: {score:.3f}")
-
-#     return coco_eval
-
-
-# coco_eval("/share/project/qiying/projects/Emu-evaluation/Emu/output/coco_answer.json")
