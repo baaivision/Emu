@@ -22,7 +22,7 @@ Code and models are publicly available to facilitate future research.
 
 
 
-## Emu2 is a strong multimodal few-Shot learner
+## Emu2 is a strong multimodal few-shot learner
 
 <div align='center'>
 <img src="./assets/comparison_fewshot.png" class="interpolation-image" alt="comparison_fewshot." height="80%" width="80%" />
