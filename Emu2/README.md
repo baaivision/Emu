@@ -6,7 +6,7 @@
 	
 <sup>1</sup> [BAAI](https://www.baai.ac.cn/english.html), <sup>2</sup> [THU](https://air.tsinghua.edu.cn), <sup>3</sup> [PKU](https://english.pku.edu.cn/) <br><sup>*</sup> equal contribution   <sup>†</sup> project lead
 
-|  [Paper](https://arxiv.org/abs/2312.13286) | [Demo](https://huggingface.co/spaces/BAAI/Emu2) | [Project Page](https://baaivision.github.io/emu2/) | [🤗HF](https://huggingface.co/BAAI/Emu2)
+|  [Paper](https://arxiv.org/abs/2312.13286) | [🤗HF Demo](https://huggingface.co/spaces/BAAI/Emu2) | [Demo](https://emu.ssi.plus) | [Project Page](https://baaivision.github.io/emu2/) | [🤗HF](https://huggingface.co/BAAI/Emu2)
 
 
 </div>
@@ -81,10 +81,10 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
-tokenizer = AutoTokenizer.from_pretrained("/BAAI/Emu2") # "/BAAI/Emu2-Chat"
+tokenizer = AutoTokenizer.from_pretrained("BAAI/Emu2") # "BAAI/Emu2-Chat"
 
 model = AutoModelForCausalLM.from_pretrained(
-    "/BAAI/Emu2", # "/BAAI/Emu2-Chat"
+    "BAAI/Emu2", # "BAAI/Emu2-Chat"
     torch_dtype=torch.bfloat16,
     low_cpu_mem_usage=True,
     trust_remote_code=True).to('cuda').eval()
@@ -124,10 +124,10 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
-tokenizer = AutoTokenizer.from_pretrained("/BAAI/Emu2") # "/BAAI/Emu2-Chat"
+tokenizer = AutoTokenizer.from_pretrained("BAAI/Emu2") # "BAAI/Emu2-Chat"
 
 model = AutoModelForCausalLM.from_pretrained(
-    "/BAAI/Emu2", # "/BAAI/Emu2-Chat"
+    "BAAI/Emu2", # "BAAI/Emu2-Chat"
     torch_dtype=torch.bfloat16,
     low_cpu_mem_usage=True,
     trust_remote_code=True).to('cuda').eval()
@@ -172,11 +172,11 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from accelerate import init_empty_weights, infer_auto_device_map, load_checkpoint_and_dispatch
 
-tokenizer = AutoTokenizer.from_pretrained("/BAAI/Emu2") # "/BAAI/Emu2-Chat"
+tokenizer = AutoTokenizer.from_pretrained("BAAI/Emu2") # "BAAI/Emu2-Chat"
 
 with init_empty_weights():
      model = AutoModelForCausalLM.from_pretrained(
-        "/BAAI/Emu2", # "/BAAI/Emu2-Chat"
+        "BAAI/Emu2", # "BAAI/Emu2-Chat"
         torch_dtype=torch.bfloat16,
         low_cpu_mem_usage=True,
         trust_remote_code=True)  
@@ -223,11 +223,11 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from accelerate import init_empty_weights, infer_auto_device_map, load_checkpoint_and_dispatch
 
-tokenizer = AutoTokenizer.from_pretrained("/BAAI/Emu2") # "/BAAI/Emu2-Chat"
+tokenizer = AutoTokenizer.from_pretrained("BAAI/Emu2") # "BAAI/Emu2-Chat"
 
 with init_empty_weights():
      model = AutoModelForCausalLM.from_pretrained(
-        "/BAAI/Emu2", # "/BAAI/Emu2-Chat"
+        "BAAI/Emu2", # "BAAI/Emu2-Chat"
         torch_dtype=torch.bfloat16,
         low_cpu_mem_usage=True,
         trust_remote_code=True)  
@@ -282,10 +282,10 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
-tokenizer = AutoTokenizer.from_pretrained("/BAAI/Emu2") # "/BAAI/Emu2-Chat"
+tokenizer = AutoTokenizer.from_pretrained("BAAI/Emu2") # "BAAI/Emu2-Chat"
 
 model = AutoModelForCausalLM.from_pretrained(
-    "/BAAI/Emu2", # "/BAAI/Emu2-Chat"
+    "BAAI/Emu2", # "BAAI/Emu2-Chat"
     load_in_4bit=True,
     trust_remote_code=True, 
     bnb_4bit_compute_dtype=torch.float16).eval()
