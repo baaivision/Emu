@@ -412,7 +412,7 @@ We thank the great work from [LLaMA](https://github.com/facebookresearch/llama),
 If you find Emu useful for your research and applications, please consider starring this repository and citing:
 
 ```
-@article{sun2023generative,
+@article{Emu2,
     title={Generative Multimodal Models are In-Context Learners}, 
     author={Quan Sun and Yufeng Cui and Xiaosong Zhang and Fan Zhang and Qiying Yu and Zhengxiong Luo and Yueze Wang and Yongming Rao and Jingjing Liu and Tiejun Huang and Xinlong Wang},
     publisher={arXiv preprint arXiv:2312.13286},
