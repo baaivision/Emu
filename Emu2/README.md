@@ -1,12 +1,3 @@
-<style>
-  .white-background {
-    background-color: white;
-    background-size: cover;
-    padding: 10px;
-    display: inline-block;
-  }
-</style>
-
 <div align='center'>
 <h1>Generative Multimodal Models are In-Context Learners</h1h1>
 <h3><a href="">Generative Multimodal Models are In-Context Learners</a></h3>
@@ -49,9 +40,8 @@ Code and models are publicly available to facilitate future research.
 ## A skilled painter
 
 <div align='center'>
-    <div class="white-background">
-        <img src="./assets/gen_barchart.png" class="interpolation-image" alt="gen_barchart." height="70%" width="70%" />
-    </div>
+    <img src="./assets/gen_barchart.png" class="interpolation-image" alt="gen_barchart." height="60%" width="60%" />
+    
 </div> 
 
 <div align='center'>
