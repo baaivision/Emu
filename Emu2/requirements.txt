@@ -1,0 +1,14 @@
+torch
+transformers
+peft
+numpy
+Pillow
+argparse
+einops
+timm
+xformers
+sentencepiece
+decord
+diffusers==0.21.2
+torchvision
+accelerate
