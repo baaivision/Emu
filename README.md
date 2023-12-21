@@ -26,7 +26,16 @@
 If you are interested in working with us on **foundation model, visual perception and multimodal learning**, please contact [Xinlong Wang](https://www.xloong.wang/) (`wangxinlong@baai.ac.cn`).
 
 
-<!-- 
-## License
+## Misc
 
-The content of this project itself is licensed under [LICENSE](). -->
+<div align="center">
+
+[![Stargazers repo roster for @baaivision/Emu](https://reporoster.com/stars/baaivision/Emu)](https://github.com/baaivision/Emu/stargazers)
+
+
+[![Forkers repo roster for @baaivision/Emu](https://reporoster.com/forks/baaivision/Emu)](https://github.com/baaivision/Emu/network/members)
+
+
+[![Star History Chart](https://api.star-history.com/svg?repos=baaivision/Emu&type=Date)](https://star-history.com/#baaivision/Emu&Date)
+
+</div>
