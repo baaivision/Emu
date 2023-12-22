@@ -37,6 +37,7 @@ Code and models are publicly available to facilitate future research.
 <img src="./assets/radar.png" class="interpolation-image" alt="Radar." height="50%" width="50%" />
 </div>
 
+
 ## A skilled painter
 
 <div align='center'>
@@ -47,6 +48,17 @@ Code and models are publicly available to facilitate future research.
 <div align='center'>
 Zero-shot subject-driven generation
 </div> 
+
+
+## Refer Expression Comprehension
+We supplemented the results of Refer Expression Comprehension on RefCOCO, RefCOCO+, RefCOCOg, and compared them with generalist models.
+
+| Model | RefCOCO<br>val | RefCOCO<br>testA | RefCOCO<br>testB | RefCOCO+<br>val | RefCOCO+<br>testA | RefCOCO+<br>testB | RefCOCOg<br>val | RefCOCOg<br>test |
+| :-----------: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| OFA-L         | 79.96 | 83.67 | 76.39 | 68.29 | 76.00 | 61.75 | 67.57 | 67.58 |
+| Shikra-13B    | 87.83 | 91.11 | 81.81 | 82.89 | 87.79 | 74.41 | 82.64 | 83.16 |
+| Qwen-VL-7B    | 89.36 | 92.26 | 85.34 | 83.12 | 88.25 | 77.21 | 85.58 | 85.48 |
+| **Emu2-Chat** | **90.40** | **93.88** | **85.97** | **87.05** | **91.43** | **80.47** | **87.64** | **88.11** |
 
 
 ## Setup
