@@ -80,9 +80,9 @@ pip install -r requirements.txt
 | **Emu2-Chat** | [🤗 HF link](https://huggingface.co/BAAI/Emu2-Chat) |
 | **Emu2-Gen** | [🤗 HF link](https://huggingface.co/BAAI/Emu2-Gen) |
 
-Model type: An auto-regressive multimodal model based on the transformer architecture.
-License: Non-commercial license
-Initialized from model: [LLaMA](https://github.com/facebookresearch/llama/blob/1076b9c51c77ad06e9d7ba8a4c6df775741732bd/LICENSE).
+- Model type: An auto-regressive multimodal model based on the transformer architecture.
+- License: Non-commercial license
+- Initialized from model: [LLaMA](https://github.com/facebookresearch/llama/blob/1076b9c51c77ad06e9d7ba8a4c6df775741732bd/LICENSE).
 
 ## Inference (Huggingface Version)
 
