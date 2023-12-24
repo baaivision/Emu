@@ -6,19 +6,16 @@
 	
 <sup>1</sup> [BAAI](https://www.baai.ac.cn/english.html), <sup>2</sup> [THU](https://air.tsinghua.edu.cn), <sup>3</sup> [PKU](https://english.pku.edu.cn/) <br><sup>*</sup> equal contribution   <sup>†</sup> project lead
 
-|  [Paper](https://arxiv.org/abs/2312.13286) | [🤗HF Demo](https://huggingface.co/spaces/BAAI/Emu2) | [Demo](https://emu.ssi.plus) | [Project Page](https://baaivision.github.io/emu2/) | [🤗HF Model](https://huggingface.co/BAAI/Emu2)
+|  [Paper](https://arxiv.org/abs/2312.13286) | [Fast Demo](https://emu.ssi.plus)  | [🤗HF Demo](https://huggingface.co/spaces/BAAI/Emu2) | [🤗HF Models](https://huggingface.co/BAAI/Emu2) | [Project Page](https://baaivision.github.io/emu2/) | [Video Demo](https://www.youtube.com/watch?v=nz4BJ7MKtKo&t=9s) |
 
 
 </div>
 
-The human ability to easily solve multimodal tasks in context (i.e., with only a few demonstrations or simple instructions), is what current multimodal systems have largely struggled to imitate. 
-In this work, we demonstrate that the task-agnostic in-context learning capabilities of large multimodal models can be significantly enhanced by effective scaling-up. 
 We introduce **Emu2**, a generative multimodal model with 37 billion parameters, trained on large-scale multimodal sequences with a unified autoregressive objective.
-**Emu2** exhibits strong multimodal in-context learning abilities, even emerging to solve tasks that require on-the-fly reasoning, such as visual prompting and object-grounded generation.
+**Emu2** exhibits strong multimodal in-context learning abilities, even emerging to solve tasks that require on-the-fly reasoning.
 The model sets a new record on multiple multimodal understanding tasks in few-shot settings.
 When instruction-tuned to follow specific instructions, **Emu2** further achieves new state-of-the-art on challenging tasks such as question answering benchmarks for large multimodal models and open-ended subject-driven generation.
 These achievements demonstrate that **Emu2** can serve as a base model and general-purpose interface for a wide range of multimodal tasks. 
-Code and models are publicly available to facilitate future research.
 
 
 
