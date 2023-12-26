@@ -29,13 +29,15 @@ def add_location_symbols(quantized_size=256, locate_special_token=2, flag_rec_sy
 
 class EmuForClsAndRegression(nn.Module):
 
-    def __init__(self, args, d_model):
+    def __init__(self, args):
         super(EmuForClsAndRegression, self).__init__()
         self.args = args
 
+        # init a empty lm
         llama_config = LlamaConfig.from_pretrained(args.llama_config_path)
         self.lm = transformers.LlamaForCausalLM(config=llama_config)
 
+        # init tokenizer
         self.tokenizer = transformers.LlamaTokenizer.from_pretrained(args.llama_config_path)
 
         special_tokens_list = [
@@ -61,11 +63,6 @@ class EmuForClsAndRegression(nn.Module):
         self.num_new_tokens = self.tokenizer.add_special_tokens(special_tokens_dict)
         self.lm.resize_token_embeddings(len(self.tokenizer))
         self.lm.model.embed_tokens.padding_idx = self.tokenizer.pad_token_id
-
-        # LM to EVA
-        self.lm.project_down = nn.Linear(self.lm.config.hidden_size, d_model, bias=False)
-        # EVA to LM
-        self.lm.project_up = nn.Linear(d_model, self.lm.config.hidden_size, bias=False)
 
         self.config = self.lm.config
         self.lm.config.d_model = self.lm.config.hidden_size
@@ -107,11 +104,3 @@ class EmuForClsAndRegression(nn.Module):
     def get_num_layers(self):
         return len(self.lm.model.layers)
 
-    """
-    @staticmethod
-    def _reorder_cache(past_key_values, beam_idx):
-        reordered_past = ()
-        for layer_past in past_key_values:
-            reordered_past += (tuple(past_state.index_select(0, beam_idx.to(past_state.device)) for past_state in layer_past),)
-        return reordered_past
-    """

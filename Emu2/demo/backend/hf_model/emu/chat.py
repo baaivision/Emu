@@ -1,36 +1,73 @@
 # -*- coding: utf-8 -*-
 
+# ===========================================================================================
+#
+#    Copyright (c) Beijing Academy of Artificial Intelligence (BAAI). All rights reserved.
+#
+#    Author        : Fan Zhang
+#    Email         : zhangfan@baai.ac.cn
+#    Institute     : Beijing Academy of Artificial Intelligence (BAAI)
+#    Create On     : 2023-12-12 07:59
+#    Last Modified : 2023-12-25 04:33
+#    File Name     : chat.py
+#    Description   :
+#
+# ===========================================================================================
+
+from functools import lru_cache
+from math import prod
 from PIL import Image
 from typing import List, Optional
 
-from safetensors.torch import load_file
 import torch
 import torch.nn as nn
 from torchvision import transforms as TF
+from accelerate import init_empty_weights, load_checkpoint_and_dispatch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from .emu import EmuModel
-from .conf.emu_conf import CLIPVisionCfg, TextDecoderCfg
 from .constants import EVA_IMAGE_SIZE, OPENAI_DATASET_MEAN, OPENAI_DATASET_STD
 from .constants import DEFAULT_IMG_PLACEHOLDER, DEFAULT_VID_PLACEHOLDER
 from .constants import DEFAULT_VIDEO_TOKEN, FAKE_VIDEO_END_TOKEN
 from .constants import SYSTEM_MESSAGE, GROUND_SYSTEM_MESSAGE, USER_TOKEN, ASSISTANT_TOKEN, GRD_SYMBOL, DEFAULT_EOS_TOKEN
-from .mixin import ModelParallelMixin
 
 
-class EmuChatGeneration(nn.Module, ModelParallelMixin):
+class EmuChatGeneration():
 
     def __init__(
         self,
-        emu_model: EmuModel,
+        tokenizer,
+        encoder,
         eva_size=EVA_IMAGE_SIZE,
         eva_mean=OPENAI_DATASET_MEAN,
         eva_std=OPENAI_DATASET_STD,
+        device_list: List[torch.device] = [torch.device("cpu")],
+        torch_dtype: torch.dtype = torch.bfloat16,
+        quantize: bool = False,
         **kwargs,
     ):
-        super().__init__()
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
+        with init_empty_weights():
+            self.emu_model = AutoModelForCausalLM.from_pretrained(
+                encoder,
+                torch_dtype=torch_dtype,
+                low_cpu_mem_usage=True,
+                trust_remote_code=True,
+            )
+        device_map = self.map_device(device_list)
+        self.device = device_list[0]
 
-        self.emu_model = emu_model
-        self.emu_model.eval()
+        if quantize:
+            self.emu_model = AutoModelForCausalLM.from_pretrained(
+                encoder,
+                load_in_4bit=True,
+                trust_remote_code=True,
+                bnb_4bit_compute_dtype=torch.float16,
+                device_map=device_map
+            ).eval()
+            self.dtype = torch.float16
+        else:
+            self.emu_model = load_checkpoint_and_dispatch(self.emu_model, encoder, device_map=device_map).eval()
+            self.dtype = torch_dtype
 
         self.transform = TF.Compose([
             TF.Resize((eva_size, eva_size), interpolation=TF.InterpolationMode.BICUBIC),
@@ -39,7 +76,7 @@ class EmuChatGeneration(nn.Module, ModelParallelMixin):
         ])
 
     @torch.no_grad()
-    def forward(
+    def __call__(
         self,
         inputs: List[Image.Image | str] | List[List[Image.Image | str]],
         is_grounding: bool = False,
@@ -53,7 +90,6 @@ class EmuChatGeneration(nn.Module, ModelParallelMixin):
         temperature: Optional[float] = None,
         length_penalty: float = -1,
         repetition_penalty: float = 1.0,
-        synced_gpus: bool = False,
         skip_special_tokens: bool = True,
         **kwargs,
     ):
@@ -62,8 +98,6 @@ class EmuChatGeneration(nn.Module, ModelParallelMixin):
             Otherwise, inputs must be List[str | Image.Image]
         """
         assert isinstance(inputs, list), "inputs must be a list"
-        device = self.emu_model.device()
-        dtype = self.emu_model.dtype()
 
         # for chat generation
         if isinstance(inputs[0], list):
@@ -77,12 +111,10 @@ class EmuChatGeneration(nn.Module, ModelParallelMixin):
             ) = self._prepare_chat_inputs(
                 inputs,
                 is_grounding,
-                device,
-                dtype,
+                device=self.device,
+                dtype=self.dtype,
             )
         else:
-            if isinstance(inputs, list):
-                assert all([isinstance(i, str | Image.Image) for i in inputs]), "input can't be list of list for normal generation"
             (
                 text_prompt,
                 image_prompt,
@@ -91,16 +123,21 @@ class EmuChatGeneration(nn.Module, ModelParallelMixin):
                 video_placeholder,
             ) = self._prepare_inputs(
                 inputs,
-                device,
-                dtype,
+                device=self.device,
+                dtype=self.dtype,
             )
 
-        output = self.emu_model.generate(
-            text=text_prompt,
+        input_ids, attention_mask = self._tokenize(
+            text_prompt,
+            image_placeholder=image_placeholder,
+            video_placeholder=video_placeholder
+        )
+
+        outputs = self.emu_model.generate(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
             image=image_prompt,
             video=video_prompt,
-            image_placeholder=image_placeholder,
-            video_placeholder=video_placeholder,
             num_beams=num_beams,
             max_new_tokens=max_new_tokens,
             min_len=min_len,
@@ -111,12 +148,14 @@ class EmuChatGeneration(nn.Module, ModelParallelMixin):
             temperature=temperature,
             length_penalty=length_penalty,
             repetition_penalty=repetition_penalty,
-            synced_gpus=synced_gpus,
-            skip_special_tokens=skip_special_tokens,
             **kwargs,
         )
 
-        return output[0]
+        output_text = self.tokenizer.batch_decode(
+            outputs, skip_special_tokens=skip_special_tokens,
+        )
+
+        return output_text[0]
 
     def _prepare_inputs(
         self,
@@ -194,77 +233,64 @@ class EmuChatGeneration(nn.Module, ModelParallelMixin):
 
         return [text_prompt], image_prompt, video_prompt, image_placeholder, video_placeholder
 
+    def _tokenize(
+        self,
+        text: List[str],
+        image_placeholder: str = DEFAULT_IMG_PLACEHOLDER,
+        video_placeholder: str = DEFAULT_VID_PLACEHOLDER,
+    ):
+        text = [
+            t.replace(image_placeholder, self.emu_model.image_placeholder).replace(video_placeholder, self.emu_model.video_placeholder)
+            for t in text
+        ]
+        inputs = self.tokenizer(text, padding="longest", return_tensors="pt")
+        return inputs.input_ids, inputs.attention_mask
+
     @classmethod
     def from_pretrained(
         cls,
         path: str,
-        instruct: bool = False,
-        dtype: torch.dtype = torch.bfloat16,
-        use_safetensors: bool = False,
         **kwargs,
     ):
-        ins = cls.from_config(instruct=instruct, **kwargs).to(dtype)
-        if use_safetensors:
-            state_dict = load_file(path)
-        else:
-            state_dict = torch.load(path)
-
-        ins.emu_model.load_state_dict(state_dict, strict=True)
-        return ins
-
-    @classmethod
-    def from_config(
-        cls,
-        instruct: bool = False,
-        **kwargs,
-    ):
-        if instruct:
-            vision_cfg = CLIPVisionCfg(n_query=256, v_query=64)
-            text_decoder_cfg = TextDecoderCfg(instruct=True)
-        else:
-            vision_cfg = CLIPVisionCfg()
-            text_decoder_cfg = TextDecoderCfg()
-
-        emu_model = EmuModel(vision_cfg=vision_cfg, text_decoder_cfg=text_decoder_cfg)
         return cls(
-            emu_model=emu_model,
+            tokenizer=path,
+            encoder=path,
             **kwargs,
         )
 
-
-    def multicuda(
+    def map_device(
         self,
         device_list: List[str | torch.device],
     ):
         """
             A simple multi device strategy, which distribute blocks in large language modles averagely
             into multi devices while keeping rest layers in LLM on the first device
-            emu_model.visual:                           4B [cuda:0]
-            emu_model.project_down:                   omit [cuda:0]
-            emu_model.project_up:                     omit [cuda:0]
-            emu_model.decoder.lm.model.embed_tokens:  omit [cuda:0]
-            emu_model.decoder.lm.model.norm:          omit [cuda:0]
-            emu_model.decoder.lm.lm_head:             omit [cuda:0]
-            emu_model.decoder.lm.model.layers.[0..59]: 33B (0.55B/layer) [cuda:0 ~ cuda:x]
+            model.visual:                           4B [cuda:0]
+            project_down:                         omit [cuda:0]
+            project_up:                           omit [cuda:0]
+            model.decoder.lm.model.embed_tokens:  omit [cuda:0]
+            model.decoder.lm.model.norm:          omit [cuda:0]
+            model.decoder.lm.lm_head:             omit [cuda:0]
+            model.decoder.lm.model.layers.[0..59]: 33B (0.55B/layer) [cuda:0 ~ cuda:x]
         """
-        mp_rule = {
-            "emu_model.visual": device_list[0],
-            "emu_model.project_down": device_list[0],
-            "emu_model.project_up": device_list[0],
-            "emu_model.decoder.lm.model.embed_tokens": device_list[0],
-            "emu_model.decoder.lm.model.norm": device_list[0],
-            "emu_model.decoder.lm.lm_head": device_list[0],
+        device_map = {
+            "project_down": device_list[0],
+            "project_up": device_list[0],
+            "model.visual": device_list[0],
+            "model.decoder.lm.model.embed_tokens": device_list[0],
+            "model.decoder.lm.model.norm": device_list[0],
+            "model.decoder.lm.lm_head": device_list[0],
         }
 
-        other_params = self.params_num(self.emu_model.visual) + \
+        other_params = self.params_num(self.emu_model.model.visual) + \
                        self.params_num(self.emu_model.project_down) + \
                        self.params_num(self.emu_model.project_up) + \
-                       self.params_num(self.emu_model.decoder.lm.model.embed_tokens) + \
-                       self.params_num(self.emu_model.decoder.lm.model.norm) + \
-                       self.params_num(self.emu_model.decoder.lm.lm_head)
+                       self.params_num(self.emu_model.model.decoder.lm.model.embed_tokens) + \
+                       self.params_num(self.emu_model.model.decoder.lm.model.norm) + \
+                       self.params_num(self.emu_model.model.decoder.lm.lm_head)
 
-        layer_params = self.params_num(self.emu_model.decoder.lm.model.layers[0])
-        layer_num = len(self.emu_model.decoder.lm.model.layers)
+        layer_params = self.params_num(self.emu_model.model.decoder.lm.model.layers[0])
+        layer_num = len(self.emu_model.model.decoder.lm.model.layers)
 
         total_params = other_params + layer_params * layer_num
         params_per_device = [total_params / len(device_list) for _ in device_list]
@@ -276,11 +302,14 @@ class EmuChatGeneration(nn.Module, ModelParallelMixin):
                 accumulate_params = 0
                 device_idx += 1
 
-            mp_rule[f"emu_model.decoder.lm.model.layers.{idx}"] = device_list[device_idx]
+            device_map[f"model.decoder.lm.model.layers.{idx}"] = device_list[device_idx]
             accumulate_params += layer_params
 
-        self.parallel(mp_rule)
-        return self
+        for l, d in device_map.items():
+            print(f"put {l} to device {d}")
 
-    def multito(self, device_list: List[str | torch.device]):
-        return self.multicuda(device_list)
+        return device_map 
+
+    @lru_cache
+    def params_num(self, module: nn.Module):
+        return sum([prod(p.shape) for p in module.parameters()])

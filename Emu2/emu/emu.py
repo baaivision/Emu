@@ -38,16 +38,21 @@ class EmuModel(nn.Module):
             init_values=vision_cfg.init_value,
             patch_dropout=vision_cfg.patch_dropout,
             rope=vision_cfg.rope,
-            use_mean_pooling=vision_cfg.global_average_pool,  # False
+            use_mean_pooling=vision_cfg.global_average_pool,
             xattn=vision_cfg.xattn,
             postnorm=vision_cfg.postnorm,
-            pt_hw_seq_len=vision_cfg.pt_hw_seq_len,  # 224/14
+            pt_hw_seq_len=vision_cfg.pt_hw_seq_len,
             intp_freq=vision_cfg.intp_freq,
             naiveswiglu=vision_cfg.naiveswiglu,
             subln=vision_cfg.subln,
         )
 
-        self.decoder = EmuForClsAndRegression(args=text_decoder_cfg, d_model=vision_cfg.width)
+        self.decoder = EmuForClsAndRegression(args=text_decoder_cfg)
+
+        # EVA to LM: 1792 -> 6656
+        self.project_up = nn.Linear(vision_cfg.width, self.decoder.lm.config.hidden_size, bias=False)
+        # LM to EVA: 6656 -> 1792
+        self.project_down = nn.Linear(self.decoder.lm.config.hidden_size, vision_cfg.width, bias=False)
 
         # EmuModel is for inference only, so set padding and truncation to left
         self.decoder.tokenizer.truncation_side = self.decoder.tokenizer.padding_side = "left"
@@ -59,13 +64,15 @@ class EmuModel(nn.Module):
         # temporarily borrow [gIMG] as the video frame feature placeholder.
         self.video_placeholder = DEFAULT_IMG_TOKEN + DEFAULT_gIMG_TOKEN * self.v_query + DEFAULT_IMG_END_TOKEN
 
-    @property
-    def device(self):
-        return next(self.parameters()).device
+    def device(self, module=None):
+        if module is None:
+            return next(self.parameters()).device
+        return next(module.parameters()).device
 
-    @property
-    def dtype(self):
-        return next(self.parameters()).dtype
+    def dtype(self, module=None):
+        if module is None:
+            return next(self.parameters()).dtype
+        return next(module.parameters()).dtype
 
     @torch.no_grad()
     def encode_image(self, image: torch.Tensor, *, n_query=None):
@@ -94,7 +101,7 @@ class EmuModel(nn.Module):
             prompt_image_embeds = self.encode_image(image)
             _, _, c = prompt_image_embeds.shape
             prompt_image_embeds = prompt_image_embeds.view(-1, c)
-            prompt_image_embeds = self.decoder.lm.project_up(prompt_image_embeds)
+            prompt_image_embeds = self.project_up(prompt_image_embeds)
 
         text = [t.replace(placeholder, self.image_placeholder) for t in text]
 
@@ -107,7 +114,7 @@ class EmuModel(nn.Module):
 
             inputs = self.decoder.tokenizer(text, padding="longest", return_tensors="pt")
 
-            device = self.decoder.lm.model.embed_tokens.weight.device
+            device = self.device(self.decoder.lm.model.embed_tokens)
             input_ids = inputs.input_ids.to(device) # B x N
             text_embeds = self.decoder.lm.model.embed_tokens(input_ids)
 
@@ -121,7 +128,7 @@ class EmuModel(nn.Module):
 
             if target_image_embeds is not None:
                 target_idx = torch.logical_and(image_idx, torch.logical_and(cumsum_idx > 0, cumsum_idx <= num_img_token))
-                text_embeds[target_idx] = self.decoder.lm.project_up(target_image_embeds).to(text_embeds.device)
+                text_embeds[target_idx] = self.project_up(target_image_embeds).to(text_embeds.device)
 
             outputs = self.decoder.lm.model(
                 inputs_embeds=text_embeds,
@@ -137,7 +144,7 @@ class EmuModel(nn.Module):
             hidden_states = outputs.hidden_states[-1]
             target_image_embeds = hidden_states[target_idx]
             target_image_embeds = target_image_embeds.view(-1, target_image_embeds.shape[-1])
-            target_image_embeds = self.decoder.lm.project_down(target_image_embeds)
+            target_image_embeds = self.project_down(target_image_embeds)
 
         _, C = target_image_embeds.shape
         B = hidden_states.shape[0]
@@ -181,7 +188,7 @@ class EmuModel(nn.Module):
 
         inputs = self.decoder.tokenizer(text, padding="longest", return_tensors="pt")
 
-        device = self.decoder.lm.model.embed_tokens.weight.device
+        device = self.device(self.decoder.lm.model.embed_tokens)
         input_ids = inputs.input_ids.to(device) # B x N
         text_embeds = self.decoder.lm.model.embed_tokens(input_ids)
 
@@ -191,7 +198,7 @@ class EmuModel(nn.Module):
             prompt_image_embeds = self.encode_image(image, n_query=self.n_query)
             _, _, c = prompt_image_embeds.shape
             prompt_image_embeds = prompt_image_embeds.view(-1, c)
-            prompt_image_embeds = self.decoder.lm.project_up(prompt_image_embeds)
+            prompt_image_embeds = self.project_up(prompt_image_embeds)
             image_idx = (input_ids == IMAGE)
             text_embeds[image_idx] = prompt_image_embeds.to(text_embeds.device)
 
@@ -199,7 +206,7 @@ class EmuModel(nn.Module):
             prompt_video_embeds = self.encode_image(video, n_query=self.v_query)
             _, _, c = prompt_video_embeds.shape
             prompt_video_embeds = prompt_video_embeds.view(-1, c)
-            prompt_video_embeds = self.decoder.lm.project_up(prompt_video_embeds)
+            prompt_video_embeds = self.project_up(prompt_video_embeds)
             video_idx = (input_ids == VIDEO)
             text_embeds[video_idx] = prompt_video_embeds.to(text_embeds.device)
 
@@ -220,30 +227,9 @@ class EmuModel(nn.Module):
             synced_gpus=synced_gpus or hasattr(next(self.parameters()), 'ds_tensor'),
             **kwargs,
         )
+
         output_text = self.decoder.tokenizer.batch_decode(
             outputs, skip_special_tokens=skip_special_tokens,
         )
 
         return output_text
-
-    def load_state_dict(
-        self,
-        state_dict: Mapping[str, Any] | str,
-        *args,
-        **kwargs,
-    ):
-        if isinstance(state_dict, str):
-            state_dict = torch.load(state_dict, map_location="cpu")
-
-        state_dict = state_dict["module"] if "module" in state_dict else state_dict
-
-        new_state_dict = OrderedDict()
-        for k, v in state_dict.items():
-            if k.startswith("decoder.lm.stu_regress_head"):
-                new_state_dict[k.replace("decoder.lm.stu_regress_head", "decoder.lm.project_down")] = v
-            elif k.startswith("vl_adapter.projection"):
-                new_state_dict[k.replace("vl_adapter.projection", "decoder.lm.project_up")] = v
-            else:
-                new_state_dict[k] = v
-
-        return super().load_state_dict(new_state_dict, *args, **kwargs)

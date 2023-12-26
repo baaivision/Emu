@@ -38,3 +38,6 @@ ASSISTANT_TOKEN = "[ASSISTANT]"
 DEFAULT_IMG_PLACEHOLDER = "[<IMG_PLH>]"
 DEFAULT_VID_PLACEHOLDER = "[<VID_PLH>]"
 FAKE_VIDEO_END_TOKEN = "[/VIDEO]"
+
+GROUND_SYSTEM_MESSAGE = "You are a helpful assistant, dedicated to provide concise and efficient answers."
+SYSTEM_MESSAGE = "You are a helpful assistant, dedicated to delivering comprehensive and meticulous responses."
