@@ -7,8 +7,9 @@ argparse
 einops
 timm
 xformers
+safetensors
 sentencepiece
 decord
-diffusers==0.21.2
+diffusers
 torchvision
 accelerate

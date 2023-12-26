@@ -1,7 +1,20 @@
 # -*- coding: utf-8 -*-
 
+# ===========================================================================================
+#
+#    Copyright (c) Beijing Academy of Artificial Intelligence (BAAI). All rights reserved.
+#
+#    Author        : Fan Zhang
+#    Email         : zhangfan@baai.ac.cn
+#    Institute     : Beijing Academy of Artificial Intelligence (BAAI)
+#    Create On     : 2023-12-08 07:30
+#    Last Modified : 2023-12-25 04:33
+#    File Name     : diffusion.py
+#    Description   :
+#
+# ===========================================================================================
+
 from dataclasses import dataclass
-import os.path as osp
 from PIL import Image
 from typing import List, Optional
 from tqdm import tqdm
@@ -11,13 +24,13 @@ import torch
 import torch.nn as nn
 from torchvision import transforms as TF
 
+from accelerate import init_empty_weights, load_checkpoint_and_dispatch
 from diffusers.utils import BaseOutput
 from diffusers import UNet2DConditionModel, EulerDiscreteScheduler, AutoencoderKL
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
-from transformers import CLIPConfig, CLIPImageProcessor
-from safetensors.torch import load_file
+from transformers import CLIPImageProcessor
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from .emu import EmuModel
 from .constants import EVA_IMAGE_SIZE, OPENAI_DATASET_MEAN, OPENAI_DATASET_STD, DEFAULT_IMG_PLACEHOLDER
 from .mixin import ModelParallelMixin
 
@@ -32,26 +45,86 @@ class EmuVisualGeneration(nn.Module, ModelParallelMixin):
 
     def __init__(
         self,
-        multimodal_encoder: EmuModel,
-        scheduler: EulerDiscreteScheduler,
-        unet: UNet2DConditionModel,
-        vae: AutoencoderKL,
-        feature_extractor: CLIPImageProcessor,
-        safety_checker: StableDiffusionSafetyChecker,
+        tokenizer: str,
+        multimodal_encoder: str,
+        scheduler: str,
+        unet: str,
+        vae: str,
+        feature_extractor: Optional[str] = None,
+        safety_checker: Optional[str] = None,
         eva_size=EVA_IMAGE_SIZE,
         eva_mean=OPENAI_DATASET_MEAN,
         eva_std=OPENAI_DATASET_STD,
+        device_list: List[torch.device] = [torch.device("cpu")],
+        torch_dtype: torch.dtype = torch.bfloat16,
+        quantize: bool = False,
         **kwargs,
     ):
-
         super().__init__()
 
-        self.multimodal_encoder = multimodal_encoder
-        self.scheduler = scheduler
-        self.unet = unet
-        self.vae = vae
-        self.feature_extractor = feature_extractor
-        self.safety_checker = safety_checker
+        self.unet = UNet2DConditionModel.from_pretrained(
+            unet,
+            torch_dtype=torch_dtype,
+            **kwargs
+        )
+        self.vae = AutoencoderKL.from_pretrained(
+            vae,
+            torch_dtype=torch_dtype,
+            **kwargs,
+        )
+        self.scheduler = EulerDiscreteScheduler.from_pretrained(
+            scheduler,
+        )
+
+        self.safety_checker = None
+        if safety_checker is not None:
+            self.safety_checker = StableDiffusionSafetyChecker.from_pretrained(
+                safety_checker,
+                torch_dtype=torch_dtype,
+                **kwargs,
+            )
+
+        self.feature_extractor = None
+        if feature_extractor is not None:
+            self.feature_extractor = CLIPImageProcessor.from_pretrained(
+                feature_extractor,
+            )
+
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
+        with init_empty_weights():
+            self.multimodal_encoder = AutoModelForCausalLM.from_pretrained(
+                multimodal_encoder,
+                low_cpu_mem_usage=True,
+                trust_remote_code=True,
+                torch_dtype=torch_dtype,
+                **kwargs,
+            )
+
+        mme_device_map, vsd_device_map = self.map_device(device_list)
+
+        if quantize:
+            self.multimodal_encoder = AutoModelForCausalLM.from_pretrained(
+                multimodal_encoder,
+                load_in_4bit=True,
+                trust_remote_code=True,
+                bnb_4bit_compute_dtype=torch.float16,
+                device_map=mme_device_map
+            )
+        else:
+            mme_device_map = {k: str(v) for k, v in mme_device_map.items()}
+            self.multimodal_encoder = load_checkpoint_and_dispatch(
+                self.multimodal_encoder,
+                multimodal_encoder,
+                dtype=torch_dtype,
+                device_map=mme_device_map,
+            )
+
+        if len(device_list) != 1 or (torch.device("cpu") not in device_list and "cpu" not in device_list):
+            for l, d in mme_device_map.items():
+                print(f"put {l} to device {d}")
+
+            self.parallel(vsd_device_map)
+            self.vae.decode = self._forward_hook(self.vae, self.vae.decode, pre=True, post=False)
 
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
         self.eval()
@@ -69,7 +142,7 @@ class EmuVisualGeneration(nn.Module, ModelParallelMixin):
             return next(self.parameters()).device
         return next(module.parameters()).device
 
-    def dtype(self, module=None):
+    def dtype(self, module):
         if module is None:
             return next(self.parameters()).dtype
         return next(module.parameters()).dtype
@@ -171,8 +244,8 @@ class EmuVisualGeneration(nn.Module, ModelParallelMixin):
         do_classifier_free_guidance: bool = False,
         placeholder: str = DEFAULT_IMG_PLACEHOLDER,
     ):
-        device = self.device(self.multimodal_encoder.visual)
-        dtype = self.dtype(self.multimodal_encoder.visual)
+        device = self.device(self.multimodal_encoder.model.visual)
+        dtype = self.dtype(self.multimodal_encoder.model.visual)
 
         has_image, has_text = False, False
         text_prompt, image_prompt = "", []
@@ -193,20 +266,21 @@ class EmuVisualGeneration(nn.Module, ModelParallelMixin):
 
         # Enable Autoencoding Mode, you can ONLY input exactly one image
         if has_image and not has_text:
-            prompt = self.multimodal_encoder.encode_image(image=image_prompt)
+            text_prompt = None
+            prompt = self.multimodal_encoder.model.encode_image(image=image_prompt)
             if do_classifier_free_guidance:
                 key = "[NULL_IMAGE]"
                 if key not in self.negative_prompt:
                     negative_image = torch.zeros_like(image_prompt)
-                    self.negative_prompt[key]= self.multimodal_encoder.encode_image(image=negative_image)
+                    self.negative_prompt[key]= self.multimodal_encoder.model.encode_image(image=negative_image)
                 prompt = torch.cat([prompt, self.negative_prompt[key]], dim=0)
         # Enable Image Generation Mode
         else:
-            prompt = self.multimodal_encoder.generate_image(text=[text_prompt], image=image_prompt)
+            prompt = self.multimodal_encoder.generate_image(text=[text_prompt], image=image_prompt, tokenizer=self.tokenizer)
             if do_classifier_free_guidance:
                 key = ""
                 if key not in self.negative_prompt:
-                    self.negative_prompt[key] = self.multimodal_encoder.generate_image(text=[key])
+                    self.negative_prompt[key] = self.multimodal_encoder.generate_image(text=[""], tokenizer=self.tokenizer)
                 prompt = torch.cat([prompt, self.negative_prompt[key]], dim=0)
 
         return prompt
@@ -251,63 +325,29 @@ class EmuVisualGeneration(nn.Module, ModelParallelMixin):
     @classmethod
     def from_pretrained(
         cls,
-        model_path: str,
-        config_path: str = osp.join(osp.dirname(__file__), "conf", "diffusion_config"),
-        dtype: torch.dtype = torch.bfloat16,
-        use_safetensors: bool = True,
+        path: str,
         **kwargs,
     ):
-        ins = cls.from_config(config_path, **kwargs).to(dtype)
-
-        if use_safetensors:
-            state_dict = load_file(model_path)
-        else:
-            state_dict = torch.load(model_path)
-
-        ins.load_state_dict(state_dict, strict=True)
-        return ins
-
-    @classmethod
-    def from_config(
-        cls,
-        path: str = osp.join(osp.dirname(__file__), "conf", "diffusion_config"),
-        **kwargs,
-    ):
-        feat_dir = kwargs.pop("feature_extractor", None)
-        safe_dir = kwargs.pop("safety_checker", None)
-        scdl_dir = kwargs.pop("scheduler", None)
-        unet_dir = kwargs.pop("unet", None)
-        vae_dir = kwargs.pop("vae", None)
+        tokenizer = kwargs.pop("tokenizer", None)
+        multimodal_encoder = kwargs.pop("multimodal_encoder", None)
+        feature_extractor = kwargs.pop("feature_extractor", None)
+        safety_checker = kwargs.pop("safety_checker", None)
+        scheduler = kwargs.pop("scheduler", None)
+        unet = kwargs.pop("unet", None)
+        vae = kwargs.pop("vae", None)
 
         check_if_none = lambda x, y: y if x is None else x
 
-        feat_dir = check_if_none(feat_dir, f"{path}/feature_extractor")
-        safe_dir = check_if_none(safe_dir, f"{path}/safety_checker")
-        scdl_dir = check_if_none(scdl_dir, f"{path}/scheduler")
-        unet_dir = check_if_none(unet_dir, f"{path}/unet")
-        vae_dir = check_if_none(vae_dir, f"{path}/vae")
-
-        # 1. multimodal_encoder
-        multimodal_encoder = EmuModel()
-
-        # 2. feature extractor
-        feature_extractor = CLIPImageProcessor.from_pretrained(feat_dir)
-        # 3. scheduler
-        scheduler = EulerDiscreteScheduler.from_pretrained(scdl_dir)
-
-        # 4. safety checker
-        safety_checker_config = CLIPConfig.from_pretrained(safe_dir)
-        safety_checker = StableDiffusionSafetyChecker(safety_checker_config)
-
-        # 5. unet
-        unet_config = UNet2DConditionModel.load_config(unet_dir)
-        unet = UNet2DConditionModel.from_config(unet_config)
-
-        # 6. vae
-        vae_config = AutoencoderKL.load_config(vae_dir)
-        vae = AutoencoderKL.from_config(vae_config)
+        tokenizer = check_if_none(tokenizer, f"{path}/tokenizer")
+        multimodal_encoder = check_if_none(multimodal_encoder, f"{path}/multimodal_encoder")
+        feature_extractor = check_if_none(feature_extractor, f"{path}/feature_extractor")
+        safety_checker = check_if_none(safety_checker, f"{path}/safety_checker")
+        scheduler = check_if_none(scheduler, f"{path}/scheduler")
+        unet = check_if_none(unet, f"{path}/unet")
+        vae = check_if_none(vae, f"{path}/vae")
 
         return cls(
+            tokenizer=tokenizer,
             multimodal_encoder=multimodal_encoder,
             feature_extractor=feature_extractor,
             safety_checker=safety_checker,
@@ -317,41 +357,41 @@ class EmuVisualGeneration(nn.Module, ModelParallelMixin):
             **kwargs,
         )
 
-    def multicuda(
+    def map_device(
         self,
         device_list: List[str | torch.device],
     ):
         """
             A simple multi device strategy, which distribute blocks in large language modles averagely
             into multi devices while keeping unet, vae, safety checker and rest layers in LLM on the first device
-            unet:                                              2.8B [cuda:0]
-            vae:                                               0.xB [cuda:0]
-            safety_checker:                                      yB [cuda:0]
-            multimodal_encoder.project_down:                   omit [cuda:0]
-            multimodal_encoder.project_up:                     omit [cuda:0]
-            multimodal_encoder.visual:                           4B [cuda:0]
-            multimodal_encoder.decoder.lm.model.embed_tokens:  omit [cuda:0]
-            multimodal_encoder.decoder.lm.model.norm:          omit [cuda:0]
-            multimodal_encoder.decoder.lm.lm_head:             omit [cuda:0]
-            multimodal_encoder.decoder.lm.model.layers.[0..59]: 33B (0.55B/layer) [cuda:0 ~ cuda:x]
+            unet:                                                    2.8B [cuda:0]
+            vae:                                                     0.xB [cuda:0]
+            safety_checker:                                            yB [cuda:0]
+            multimodal_encoder.project_down:                         omit [cuda:0]
+            multimodal_encoder.project_up:                           omit [cuda:0]
+            multimodal_encoder.model.visual:                           4B [cuda:0]
+            multimodal_encoder.model.decoder.lm.model.embed_tokens:  omit [cuda:0]
+            multimodal_encoder.model.decoder.lm.model.norm:          omit [cuda:0]
+            multimodal_encoder.model.decoder.lm.lm_head:             omit [cuda:0]
+            multimodal_encoder.model.decoder.lm.model.layers.[0..59]: 33B (0.55B/layer) [cuda:0 ~ cuda:x]
         """
         mp_rule = {
             "unet": device_list[0],
             "vae": device_list[0],
-            "multimodal_encoder.visual": device_list[0],
             "multimodal_encoder.project_down": device_list[0],
             "multimodal_encoder.project_up": device_list[0],
-            "multimodal_encoder.decoder.lm.model.embed_tokens": device_list[0],
-            "multimodal_encoder.decoder.lm.model.norm": device_list[0],
-            "multimodal_encoder.decoder.lm.lm_head": device_list[0],
+            "multimodal_encoder.model.visual": device_list[0],
+            "multimodal_encoder.model.decoder.lm.model.embed_tokens": device_list[0],
+            "multimodal_encoder.model.decoder.lm.model.norm": device_list[0],
+            "multimodal_encoder.model.decoder.lm.lm_head": device_list[0],
         }
 
-        other_params = self.params_num(self.multimodal_encoder.visual) + \
-                       self.params_num(self.multimodal_encoder.project_down) + \
+        other_params = self.params_num(self.multimodal_encoder.project_down) + \
                        self.params_num(self.multimodal_encoder.project_up) + \
-                       self.params_num(self.multimodal_encoder.decoder.lm.model.embed_tokens) + \
-                       self.params_num(self.multimodal_encoder.decoder.lm.model.norm) + \
-                       self.params_num(self.multimodal_encoder.decoder.lm.lm_head) + \
+                       self.params_num(self.multimodal_encoder.model.visual) + \
+                       self.params_num(self.multimodal_encoder.model.decoder.lm.model.embed_tokens) + \
+                       self.params_num(self.multimodal_encoder.model.decoder.lm.model.norm) + \
+                       self.params_num(self.multimodal_encoder.model.decoder.lm.lm_head) + \
                        self.params_num(self.unet) + \
                        self.params_num(self.vae)
 
@@ -359,8 +399,8 @@ class EmuVisualGeneration(nn.Module, ModelParallelMixin):
             mp_rule["safety_checker"] = device_list[0]
             other_params += self.params_num(self.safety_checker)
 
-        layer_params = self.params_num(self.multimodal_encoder.decoder.lm.model.layers[0])
-        layer_num = len(self.multimodal_encoder.decoder.lm.model.layers)
+        layer_params = self.params_num(self.multimodal_encoder.model.decoder.lm.model.layers[0])
+        layer_num = len(self.multimodal_encoder.model.decoder.lm.model.layers)
 
         total_params = other_params + layer_params * layer_num
         params_per_device = [total_params / len(device_list) for _ in device_list]
@@ -372,12 +412,10 @@ class EmuVisualGeneration(nn.Module, ModelParallelMixin):
                 accumulate_params = 0
                 device_idx += 1
 
-            mp_rule[f"multimodal_encoder.decoder.lm.model.layers.{idx}"] = device_list[device_idx]
+            mp_rule[f"multimodal_encoder.model.decoder.lm.model.layers.{idx}"] = device_list[device_idx]
             accumulate_params += layer_params
 
-        self.parallel(mp_rule)
-        self.vae.decode = self._forward_hook(self.vae, self.vae.decode, pre=True, post=False)
-        return self
+        mme_rule = {k.replace("multimodal_encoder.", ""): v for k, v in mp_rule.items() if k.startswith("multimodal_encoder")}
+        vsd_rule = {k: v for k, v in mp_rule.items() if not k.startswith("multimodal_encoder")}
 
-    def multito(self, device_list: List[str | torch.device]):
-        return self.multicuda(device_list)
+        return mme_rule, vsd_rule
