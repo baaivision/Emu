@@ -13,3 +13,4 @@ decord
 diffusers
 torchvision
 accelerate
+gradio==3.40.1
