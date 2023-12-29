@@ -1,5 +1,5 @@
 torch
-transformers
+transformers==4.31.0
 peft
 numpy
 Pillow
@@ -8,9 +8,10 @@ einops
 timm
 xformers
 safetensors
-sentencepiece
+sentencepiece==0.1.99
 decord
-diffusers
+diffusers==0.24.0
 torchvision
-accelerate
+accelerate==0.25.0
 gradio==3.40.1
+tokenizers==0.13.3
