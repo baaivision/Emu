@@ -13,11 +13,12 @@
 
 
 
-- [**Emu1**](Emu1) (arxiv 2023/07) - Generative Pretraining in Multimodality
+- [**Emu1**](Emu1) (ICLR 2024, 2023/07) - Generative Pretraining in Multimodality
 
-- [**Emu2**](Emu2) (arxiv 2023/12) - Generative Multimodal Models are In-Context Learners
+- [**Emu2**](Emu2) (CVPR 2024, 2023/12) - Generative Multimodal Models are In-Context Learners
 
 ## News
+- 2024.2 **Emu1 and Emu2 are accepted by ICLR 2024 and CVPR 2024 respectively! 🎉**
 - 2023.12 Inference code, model and demo of Emu2 are available. Enjoy the [demo](http://218.91.113.230:9002/).
 - 2023.12 We have released Emu2, open and largest generative multimodal models that achieve new state of the art on multimodal understanding and generation tasks.
 - 2023.7 Inference code and model of Emu are available.
