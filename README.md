@@ -17,7 +17,10 @@
 
 - [**Emu2**](Emu2) (CVPR 2024, 2023/12) - Generative Multimodal Models are In-Context Learners
 
+- [**Emu3**](https://github.com/baaivision/Emu3) (arXiv 2024, 2024/09) - Next-Token Prediction is All You Need 🔥🔥🔥
+
 ## News
+- 2024.9 We introduce **Emu3**, a new suite of state-of-the-art multimodal models trained solely with next-token prediction. 🔥🔥🔥
 - 2024.2 **Emu1 and Emu2 are accepted by ICLR 2024 and CVPR 2024 respectively! 🎉**
 - 2023.12 Inference code, model and demo of Emu2 are available. Enjoy the [demo](http://218.91.113.230:9002/).
 - 2023.12 We have released Emu2, open and largest generative multimodal models that achieve new state of the art on multimodal understanding and generation tasks.
